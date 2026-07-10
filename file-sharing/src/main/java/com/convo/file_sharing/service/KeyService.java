@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -30,11 +31,14 @@ public class KeyService {
                 .algorithm(dto.algorithm())
                 .createdAt(OffsetDateTime.now())
                 .build();
+
+        Objects.requireNonNull(entity, "entity must not be null");
         repository.save(entity);
     }
 
     // Backs Debashri's/Anisa's verification lookups (2.4).
     public KeyResponseDto getKey(UUID userId) {
+        Objects.requireNonNull(userId, "userId must not be null");
         PublicKeyEntity entity = repository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("No public key registered for user " + userId));
         return new KeyResponseDto(entity.getPublicKey(), entity.getAlgorithm());

@@ -14,6 +14,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -47,9 +48,10 @@ public class TransferMetadataService {
                 .previousHash(previousHash)            // Task 1
                 .fileHash(null)                        // Task 3: filled in by PATCH later
                 .signature(null)
-                .timestamp(nowTruncatedForStorage()) // Task 2: server clock, not client
+                .timestamp(nowTruncatedForStorage())    // Task 2: server clock, not client
                 .build();
 
+        Objects.requireNonNull(entity, "entity must not be null");
         TransferMetadata saved = repository.save(entity);
         return toResponse(saved);
     }
@@ -63,6 +65,8 @@ public class TransferMetadataService {
      */
     @Transactional
     public MetadataResponseDto attachHashAndSignature(UUID transferId, MetadataPatchDto patch) {
+        Objects.requireNonNull(transferId, "transferId must not be null");
+
         TransferMetadata entity = repository.findById(transferId)
                 .orElseThrow(() -> new NotFoundException("No pending transfer with id " + transferId));
 
