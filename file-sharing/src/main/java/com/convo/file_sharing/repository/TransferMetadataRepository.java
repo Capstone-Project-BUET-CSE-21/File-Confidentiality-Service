@@ -14,4 +14,8 @@ public interface TransferMetadataRepository extends JpaRepository<TransferMetada
     // (session_id, timestamp desc) — Pageable(0,1) turns this into a
     // "LIMIT 1" the planner can satisfy directly from the index.
     List<TransferMetadata> findBySessionIdOrderByTimestampDesc(UUID sessionId, Pageable pageable);
+
+    java.util.Optional<TransferMetadata> findByFileHash(String fileHash);
+
+    List<TransferMetadata> findByContentHashOrderByTimestampAsc(String contentHash);
 }
