@@ -36,4 +36,10 @@ public class TransferMetadataController {
         MetadataResponseDto response = service.attachHashAndSignature(transferId, patch);
         return ResponseEntity.ok(response);
     }
+
+    @GetMapping("/history/{contentHash}")
+    public ResponseEntity<java.util.List<com.convo.file_sharing.dto.ChainHistoryResponseDto>> getChainHistory(
+            @PathVariable String contentHash) {
+        return ResponseEntity.ok(service.getChainHistory(contentHash));
+    }
 }

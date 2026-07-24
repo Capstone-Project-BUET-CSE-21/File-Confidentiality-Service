@@ -46,6 +46,12 @@ public class TransferMetadata {
     @Column(name = "file_hash")
     private String fileHash;
 
+    @Column(name = "content_hash")
+    private String contentHash;
+
+    @Column(name = "origin_session_id")
+    private UUID originSessionId;
+
     @Column(name = "signature")
     private String signature;
 

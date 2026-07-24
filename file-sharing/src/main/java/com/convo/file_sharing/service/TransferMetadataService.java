@@ -36,7 +36,16 @@ public class TransferMetadataService {
      */
     @Transactional
     public MetadataResponseDto createPendingTransfer(MetadataRequestDto request) {
-        String previousHash = findPreviousHash(request.sessionId());
+        String previousHash = request.previousHash();
+        UUID originSessionId = request.sessionId();
+
+        if (previousHash != null && !previousHash.trim().isEmpty()) {
+            TransferMetadata prev = repository.findByFileHash(previousHash)
+                    .orElseThrow(() -> new NotFoundException("Invalid previousHash: not found in durable chain store"));
+            originSessionId = prev.getOriginSessionId();
+        } else {
+            previousHash = null;
+        }
 
         TransferMetadata entity = TransferMetadata.builder()
                 .transferId(UUID.randomUUID())        // Task 2: server-generated
@@ -46,7 +55,9 @@ public class TransferMetadataService {
                 .fileSize(request.fileSize())
                 .mimeType(request.mimeType())
                 .previousHash(previousHash)            // Task 1
+                .originSessionId(originSessionId)      // Task 7
                 .fileHash(null)                        // Task 3: filled in by PATCH later
+                .contentHash(null)
                 .signature(null)
                 .timestamp(nowTruncatedForStorage())    // Task 2: server clock, not client
                 .build();
@@ -70,8 +81,16 @@ public class TransferMetadataService {
         TransferMetadata entity = repository.findById(transferId)
                 .orElseThrow(() -> new NotFoundException("No pending transfer with id " + transferId));
 
+        if (entity.getPreviousHash() == null) {
+            List<TransferMetadata> existing = repository.findByContentHashOrderByTimestampAsc(patch.contentHash());
+            if (!existing.isEmpty()) {
+                throw new IllegalArgumentException("Laundering gap detected: file content is known but no previousHash provided.");
+            }
+        }
+
         entity.setFileHash(patch.fileHash());
         entity.setSignature(patch.signature());
+        entity.setContentHash(patch.contentHash());
 
         TransferMetadata saved = repository.save(entity);
         return toResponse(saved);
@@ -92,22 +111,21 @@ public class TransferMetadataService {
         return OffsetDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MICROS);
     }
 
-    private String findPreviousHash(UUID sessionId) {
-        List<TransferMetadata> latest = repository.findBySessionIdOrderByTimestampDesc(
-                sessionId, PageRequest.of(0, 1));
-
-        if (latest.isEmpty()) {
-            return null; // first transfer in the session
-        }
-
-        // Chain to the actual content hash of the transfer that preceded
-        // this one. NOTE: this will legitimately be null if the previous
-        // transfer hasn't been PATCHed with its fileHash yet (client started
-        // a new transfer before finishing signing the last one) — confirm
-        // with Suchi/Debashri whether their chain reconstruction needs to
-        // handle that gap case specially, or whether the client should block
-        // starting a new transfer until the prior one is finalized.
-        return latest.get(0).getFileHash();
+    public List<com.convo.file_sharing.dto.ChainHistoryResponseDto> getChainHistory(String contentHash) {
+        return repository.findByContentHashOrderByTimestampAsc(contentHash).stream()
+                .map(e -> new com.convo.file_sharing.dto.ChainHistoryResponseDto(
+                        e.getTransferId(),
+                        e.getSessionId(),
+                        e.getOriginSessionId(),
+                        e.getSenderId(),
+                        e.getFileName(),
+                        e.getFileSize(),
+                        e.getMimeType(),
+                        e.getTimestamp(),
+                        e.getPreviousHash(),
+                        e.getContentHash()
+                ))
+                .toList();
     }
 
     private MetadataResponseDto toResponse(TransferMetadata e) {

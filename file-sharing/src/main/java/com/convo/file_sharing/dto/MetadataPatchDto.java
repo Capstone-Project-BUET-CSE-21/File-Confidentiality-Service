@@ -6,5 +6,6 @@ import jakarta.validation.constraints.NotBlank;
 // per sections 0.3/0.4. fileHash is hex, signature is base64 (section 0.4).
 public record MetadataPatchDto(
         @NotBlank String fileHash,
-        @NotBlank String signature
+        @NotBlank String signature,
+        @NotBlank String contentHash
 ) {}

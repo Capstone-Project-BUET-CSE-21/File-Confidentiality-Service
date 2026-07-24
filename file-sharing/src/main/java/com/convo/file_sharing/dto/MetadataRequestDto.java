@@ -11,5 +11,6 @@ public record MetadataRequestDto(
         @NotNull UUID senderId,
         @NotBlank String fileName,
         @Positive Long fileSize,
-        @NotBlank String mimeType
+        @NotBlank String mimeType,
+        String previousHash
 ) {}
